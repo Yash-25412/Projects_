@@ -1,0 +1,196 @@
+---
+title: "Cyclistic_Analysis_2021"
+author: "Yash"
+date: "21/01/2022"
+output: html_document
+---
+
+## Calling In Required packages
+
+For performing various cleaning , analising and visualizing tasks we need to load some basic or advanced packages.
+ 
+```{r}
+ 
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library("dplyr")
+rm(list=ls())  ##for clearing environment page
+
+```
+
+## Importing Files and Preparing Data
+
+This section shows the process of importing data and preparing it for further cleaning and analysis.
+
+```{r}
+
+
+t1 <- read.csv("202101-divvy-tripdata.csv")
+t2 <- read.csv("202102-divvy-tripdata.csv")
+t3 <- read.csv("202103-divvy-tripdata.csv")
+t4 <- read.csv("202104-divvy-tripdata.csv")
+t5 <- read.csv("202105-divvy-tripdata.csv")
+t6 <- read.csv("202106-divvy-tripdata.csv")
+t7 <- read.csv("202107-divvy-tripdata.csv")
+t8 <- read.csv("202108-divvy-tripdata.csv")
+t9 <- read.csv("202109-divvy-tripdata.csv")
+t10 <- read.csv("202110-divvy-tripdata.csv")
+t11 <- read.csv("202111-divvy-tripdata.csv")
+
+```
+
+### Preparing Data
+
+Now we will prepare data by creating some new required fields and changing some datatypes (if required),also some required cleaning will also be carried out at this stage so that we face least amount of resistance while analysing our required trend or anything related to our main goal.
+
+```{r}
+bike_data <- rbind(t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11)
+```
+
+```{r}
+bike_data <- remove_empty(bike_data,which = c("rows","cols"))
+bike_data$start_station_name[bike_data$start_station_name == ""]<- NA
+bike_data <- bike_data %>% 
+  drop_na()
+```
+
+```{r}
+
+bike_data$dates <- as.Date(bike_data$started_at)
+bike_data$started_at <- ymd_hms(bike_data$started_at)
+bike_data$ended_at <- ymd_hms(bike_data$ended_at)
+
+```
+
+```{r}
+bike_data$start_hour <- hour(bike_data$started_at)
+bike_data$end_hour <- hour(bike_data$ended_at)
+bike_data$duration <- (bike_data$ended_at)-(bike_data$started_at)
+bike_data$duration_hours <- difftime(bike_data$ended_at,bike_data$started_at,units = c("hours"))
+bike_data$duration_mins <- difftime(bike_data$ended_at,bike_data$started_at,units = c("mins"))
+```
+
+```{r}
+bike_data <-bike_data %>% 
+  filter(duration > 0)
+
+bike_data_prepared <- bike_data %>% select(dates,rideable_type,started_at,ended_at,start_station_name,member_casual,start_hour,end_hour,duration_hours,duration_mins,duration)
+```
+
+## Change Log
+
+This section highlights all the changes that have been made to process,clean and perapre data for analysis and draw some useful insights.
+
+* initially we imported data of 11 months (01/2021 - 12/2021)
+
+* then we created one single dataframe of those different 11 months data.
+
+* now we did some cleaning in data by dropping rows and columns wth na values or empty ones, further on  start_station_name column was cleaned by droping all rows with the blank entries.Here about 644,373 observations were cleared.4,703,150 observations were left.
+
+* further on we changed the datatype of "started_at" and "ended_at" columns from "char" to "ymd_hms" so it can be    accessed to use as date and time formatting for creating further columns required by us.
+
+* we created separate columns for dates , start_hour , end_hour , duration in secs,minutes,hours respectively.
+
+* later data was again cleaned or can say filtered with duration value more than zero and thus we wrapped up creating a final bike_data_prepared named dataframe for analysis.
+
+## Analysis
+
+Our task is to identify the trend or any sort of useful insight that help to improve to adoption our wider range of customers, for which we are going to study the numbers between the two different type of customers that Cyclistic company deals with one those are members and other casual ones.
+
+```{r}
+
+bike_data %>% 
+  group_by(member_casual) %>% 
+  summarise(Count=n())
+
+```
+
+```{r}
+aggregate(bike_data$duration ~ bike_data$member_casual , FUN = mean)
+```
+
+```{r}
+Weekly_ride_data <- bike_data %>% 
+  mutate(Weekday = wday(bike_data$started_at,label = TRUE)) %>% 
+  group_by(member_casual,Weekday) %>% 
+  summarise(Count=n(),
+            average_ride_length = mean(duration)) %>% 
+  arrange(member_casual,Weekday)
+```
+
+```{r}
+hourly_ride_data <- bike_data %>% 
+  group_by(Weekly = floor_date(dates,"week"),start_hour,member_casual) %>% 
+  summarise(total_mins = sum(duration_mins),
+            Mean = mean(duration_mins),
+            Median = median(duration_mins),
+            Max = max(duration_mins),
+            Min = min(duration_mins),
+            Count = n())
+```
+
+```{r}
+monthly_ride_data <- bike_data %>% 
+  mutate(Month=month(started_at,label = TRUE)) %>% 
+  group_by(Weekly= floor_date(dates,"week"),Month,member_casual) %>% 
+  summarise(total_mins = sum(duration_mins),
+            Mean = mean(duration_mins),
+            Median = median(duration_mins),
+            Max = max(duration_mins),
+            Min = min(duration_mins),
+            Count = n())
+```
+
+Here different tables of both customer types are pulled out related to the number rides by station name, so that most active stations can be prime areas of interests 
+ 
+```{r}
+bike_data %>% 
+  filter(member_casual == "casual") %>% 
+  group_by(start_station_name) %>% 
+  summarise(number_of_rides = n()) %>% 
+  arrange(desc(number_of_rides))
+```
+```{r}
+bike_data %>% 
+  filter(member_casual == "member") %>% 
+  group_by(start_station_name) %>% 
+  summarise(number_of_rides = n()) %>% 
+  arrange(desc(number_of_rides))
+```
+ 
+## Visualising our Analysis
+Here we have plotted some graphs related to the tables and data we have analyzed, to get a better picture of trend or patterns.
+
+```{r}
+ 
+ggplot(Weekly_ride_data)+(mapping = aes(x=Weekday,y=Count,fill = member_casual))+geom_col(position = "dodge")+
+ scale_y_continuous()
+
+```
+
+```{r}
+
+ggplot(hourly_ride_data)+(mapping = aes(x=start_hour,y=total_mins,fill = member_casual))+geom_col(position = "dodge")+ scale_y_continuous()
+
+```
+
+```{r}
+
+ggplot(monthly_ride_data)+(mapping = aes(x=Month,y=Count,fill=member_casual))+geom_col(position = "dodge")+
+  scale_y_continuous()
+```
+
+## Insughts we made through our analysis
+* Number of rides taken by member type customers are pretty consistent ones, whereas casual type customers tend to rent higher number of bikes during weekends.
+
+* During the whole day people tend to get most active after noon that is after 12:00 pm and that activity keeps high till evening 8:00 of casual customer type.
+
+* We also observed that these bike hiring numbers also get drastically affected with season change, like cold sesaon see very less activity of hiring while warm typically May-Oct seems pretty active, and this observation holds true for both the customer type.
+
+## Thoughts through analysis for further increasing adoptance
+* Offering some special type of discounts on membership on weekends might attract more casual customer types to get a membership.
+
+* Daily active as we noticed 12:00 pm - 8:00 pm can be utilized to promote any type of new offers and since these hours are pretty active so maintaining the availablity and any other related stuff will also leave a good impression thus attracting more customers.
+
+* Cutting of some rates or providing some type of offers during cold season might attract people during such times too

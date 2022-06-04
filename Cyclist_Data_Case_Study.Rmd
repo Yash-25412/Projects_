@@ -1,0 +1,165 @@
+---
+title: "Cyclist_Data_Case_Study"
+author: "Yash"
+date: "24/12/2021"
+output:
+  html_document:
+    df_print: paged
+---
+
+## Calling In Required packages
+
+For performing various cleaning , analising and visualizing tasks we need to load some basic or advanced packages.
+ 
+```{r}
+ 
+library(tidyverse)
+library(lubridate)
+library(janitor)
+library("dplyr")
+rm(list=ls())  ##for clearing environment page
+
+```
+
+## Importing Files and Preparing Data
+
+This section shows the process of importing data and preparing it for further cleaning and analysis.
+
+```{r}
+###
+### Importing Data
+###
+
+df1<- read.csv("202004-divvy-tripdata.csv")
+df2<- read.csv("202005-divvy-tripdata.csv")
+df3<- read.csv("202006-divvy-tripdata.csv")
+df4<- read.csv("202008-divvy-tripdata.csv")
+df5<- read.csv("202009-divvy-tripdata.csv")
+df6<- read.csv("202010-divvy-tripdata.csv")
+df7<- read.csv("202011-divvy-tripdata.csv")
+df8<- read.csv("202012-divvy-tripdata.csv")
+df9<- read.csv("202101-divvy-tripdata.csv")
+df10<- read.csv("202102-divvy-tripdata.csv")
+df11<- read.csv("202103-divvy-tripdata.csv")
+df12<- read.csv("202104-divvy-tripdata.csv")
+
+
+ride_data <- rbind(df1,df2,df3,df4,df5,df6,df7,df8,df9,df10,df11,df12)
+
+
+```
+
+### Preparing Data
+
+Now we will prepare data by creating some new required fields and changing some the one datatype into the required ones.
+
+```{r}
+
+ride_data$dates <- as.Date(ride_data$started_at)
+ride_data$started_at <- ymd_hms(ride_data$started_at)
+ride_data$ended_at <- ymd_hms(ride_data$ended_at)
+```
+
+```{r}
+ride_data$start_hour <- hour(ride_data$started_at)
+ride_data$end_hour <- hour(ride_data$ended_at)
+ride_data$duration <- (ride_data$ended_at)-(ride_data$started_at)
+ride_data$hours <- difftime(ride_data$ended_at,ride_data$started_at,units = c("hours"))
+ride_data$minutes <- difftime(ride_data$ended_at,ride_data$started_at,units = c("mins"))
+```
+
+## Cleaning Data
+
+Here we will clean our data by removing any unwanted or empty fields and deleting rows or columns with NA/null values.
+
+```{r}
+ride_data <- remove_empty(ride_data,which = c("rows","cols"))
+ride_data$start_station_name[ride_data$start_station_name == ""]<- NA
+ride_data <- ride_data %>% 
+  drop_na()
+```
+
+```{r}
+ride_data <-ride_data %>% 
+  filter(duration > 0)
+
+ride_data <- ride_data %>% select(dates,rideable_type,started_at,ended_at,start_station_name,member_casual,start_hour,end_hour,hours,minutes,duration)
+```
+
+## Change Log
+
+This section highlights all the changes that have been made to process,clean and perapre data for analysis and draw some useful insights.
+
+* initially we imported data of 12 months (04/2020 - 04/2021)
+
+* then we created one single dataframe of those different 12 months data.
+
+* further on we changed the datatype of "started_at" and "ended_at" columns from "char" to "ymd_hms" so it can be accessed to use as date and time formatting for creating further columns required by us.
+
+* we created separate columns for dates , start_hour , end_hour , duration in secs,minutes,hours respectively.
+
+* moving on we cleaned data by filtering where duration was less than zero , dropping rows and columns wth na values or empty ones.
+
+* thus creating a final ride_data named dataframe for analysis.
+
+## Analyising Data
+
+Here we will analyse trends , make some observations by visualizing the processed,cleaned and prepared data.
+
+```{r}
+###
+### Create a weekly dataframe relating start hours.
+###
+ride_data_2 <- ride_data %>% 
+  group_by(Weekly = floor_date(dates,"week"),start_hour) %>% 
+  summarise(total_mins = sum(minutes),
+            Mean = mean(minutes),
+            Median = median(minutes),
+            Max = max(minutes),
+            Min = min(minutes),
+            Count = n())
+```
+
+```{r}
+summary(ride_data_2$Count)
+```
+
+```{r}
+xtabs(ride_data_2$Count~ride_data_2$start_hour)
+```
+
+Here is the plot showcasing weekly trend of number of rides throught our 12 month data.
+```{r}
+ride_data_2 %>% 
+  ggplot()+geom_col(mapping=aes(x=Weekly,y=Count))+
+  ggtitle("Count of Rides Per Week")
+```
+
+Plot showing number of rides related to hours to analysise most active hours
+```{r}
+ride_data_2 %>% 
+  ggplot()+geom_col(mapping=aes(x=start_hour,y=Count,fill=Count))+
+  ggtitle("Count Of Rides by hour")
+```
+
+Creating dataframe relating number of rides with customer type.
+```{r}
+ride_data_3 <- ride_data %>% 
+  group_by(Weekly = floor_date(dates,"week"),member_casual) %>% 
+  summarise(total_mins = sum(minutes),
+            Mean = mean(minutes),
+            Median = median(minutes),
+            Max = max(minutes),
+            Min = min(minutes),
+            Count = n())
+```
+Plot showing trend between weeekly trends for number of rides by customer type.
+```{r}
+ride_data_3 %>% 
+  ggplot()+geom_area(mapping=aes(x=Weekly,y=Count,fill=member_casual))+ggtitle("Count of Rides related to customer type")
+```
+
+```{r}
+ride_data_3 %>% 
+  ggplot()+geom_col(mapping=aes(x=Weekly,y=total_mins,fill=member_casual))+scale_y_continuous()+ggtitle("Total Amount of time spent by customer type") 
+```
