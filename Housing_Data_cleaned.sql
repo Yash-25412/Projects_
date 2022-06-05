@@ -1,5 +1,6 @@
 --Since Housing_data is now our cleaned dataset so some queries won't work which used some old columns so for running those queries
 --Housing_data_uncleaned must be used.
+--Housing_Data is the name of file used in SQL server (actual file : Nashville housing data  provided earlier)
 
 select * from Housing_data
 
@@ -47,7 +48,7 @@ select * from Housing_data where PropertyAddress is null -- check query
 
 -----------------------------------------
 -- breaking out address into sub parts
--- basically breaking out addresses as address , city , state so each aspect of address can be accessuble individually.
+-- basically breaking out addresses as address , city , state so each aspect of address can be accessable individually.
 
 select * from Housing_data
 
@@ -101,7 +102,7 @@ set SoldAsVacant = case
 
  -----------------------------------------------
  -- removing duplicates
- -- although removing amy data from the table itself is not a good prectise but we are gonna do for practise purpose and I do have abckup of this data too.
+ -- although removing any data from the table itself is not a good prectise but we are gonna do for practise purpose and I do have abckup of this data too.
 
  select * 
  from Housing_data
